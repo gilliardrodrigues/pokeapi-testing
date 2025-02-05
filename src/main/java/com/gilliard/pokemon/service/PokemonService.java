@@ -1,15 +1,19 @@
 package com.gilliard.pokemon.service;
 
 import com.gilliard.pokemon.model.Pokemon;
+import com.gilliard.pokemon.model.SortType;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.*;
 
 import static com.gilliard.pokemon.utils.ApiUtils.convertToMapList;
+import static com.gilliard.pokemon.utils.MergeSortUtils.mergeSort;
 
 @Service
 public class PokemonService {
@@ -20,16 +24,34 @@ public class PokemonService {
         this.restTemplate = new RestTemplate();
     }
 
-    public List<Pokemon> getFilteredPokemons(String query) {
-        List<Pokemon> filteredPokemons = getAllPokemons();
+    public List<Pokemon> getPokemons(String query, String sort) {
+        List<Pokemon> pokemons = getAllPokemons();
 
-        if (query == null || query.trim().isEmpty()) {
-            return filteredPokemons;
+        if (isParamEmpty(query)) {
+            return pokemons;
         }
         String caseInsensitiveQuery = query.trim().toLowerCase();
-        return filteredPokemons.stream()
+        pokemons = pokemons.stream()
                 .filter(pokemon -> pokemon.getName().toLowerCase().contains(caseInsensitiveQuery))
                 .toList();
+
+        if (isParamEmpty(sort)) {
+            return pokemons;
+        }
+
+        SortType sortType;
+        try {
+            sortType = SortType.fromString(sort);
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
+        }
+
+        pokemons = mergeSort(pokemons, sortType.getEvaluator());
+        return pokemons;
+    }
+
+    public Boolean isParamEmpty(String param) {
+        return param == null || param.trim().isEmpty();
     }
 
     public List<Pokemon> getAllPokemons() {

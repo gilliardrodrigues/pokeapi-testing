@@ -21,9 +21,10 @@ public class PokemonController {
     }
 
     @GetMapping
-    public ResponseEntity<PokemonResponseDTO> getPokemons(@RequestParam(value = "query", required = false) String query) {
-        List<Pokemon> filteredPokemons = pokemonService.getFilteredPokemons(query);
-        List<String> pokemonNames = filteredPokemons.stream()
+    public ResponseEntity<PokemonResponseDTO> getPokemons(@RequestParam(value = "query", required = false) String query,
+                                                          @RequestParam(value = "sort", required = false) String sort) {
+        List<Pokemon> pokemons = pokemonService.getPokemons(query, sort);
+        List<String> pokemonNames = pokemons.stream()
                 .map(Pokemon::getName)
                 .toList();
         PokemonResponseDTO responseDTO = new PokemonResponseDTO(pokemonNames);
