@@ -55,7 +55,8 @@ public enum SortType {
      * @return Nome sem caracteres especiais.
      */
     private static String cleanString(String name) {
-        return name.replaceAll("[^a-zA-Z0-9]", " "); // Remove hífens e outros caracteres especiais
+        String NON_ALPHANUMERIC_REGEX = "[^a-zA-Z0-9]";
+        return name.replaceAll(NON_ALPHANUMERIC_REGEX, " "); // Remove hífens e outros caracteres especiais
     }
 }
 
