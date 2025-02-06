@@ -2,18 +2,19 @@ package com.gilliard.pokemon.dto;
 
 import java.util.List;
 
-public class PokemonResponseDTO {
-    private List<String> result;
+public class PokemonResponseDTO<T> {
+    private List<T> result;
 
-    public PokemonResponseDTO(List<String> result) {
+    public PokemonResponseDTO(List<T> result) {
         this.result = result;
     }
 
-    public List<String> getResult() {
+    public List<T> getResult() {
         return result;
     }
 
-    public void setResult(List<String> result) {
+    public void setResult(List<T> result) {
         this.result = result;
     }
 }
+

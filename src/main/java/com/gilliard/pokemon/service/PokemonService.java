@@ -1,5 +1,6 @@
 package com.gilliard.pokemon.service;
 
+import com.gilliard.pokemon.dto.PokemonHighlightDTO;
 import com.gilliard.pokemon.dto.PokemonResponseDTO;
 import com.gilliard.pokemon.model.Pokemon;
 import com.gilliard.pokemon.model.SortType;
@@ -13,6 +14,7 @@ import java.util.*;
 
 import static com.gilliard.pokemon.utils.ApiUtils.convertToMapList;
 import static com.gilliard.pokemon.utils.MergeSortUtils.mergeSort;
+import static com.gilliard.pokemon.utils.StringUtils.highlightFirstOccurrence;
 
 @Service
 public class PokemonService {
@@ -23,13 +25,13 @@ public class PokemonService {
         this.restTemplate = new RestTemplate();
     }
 
-    public PokemonResponseDTO getPokemons(String query, String sort) {
+    public PokemonResponseDTO<String> getPokemons(String query, String sort) {
         List<Pokemon> pokemons = getAllPokemons();
 
         if (!isParamEmpty(query)) {
             String caseInsensitiveQuery = query.trim().toLowerCase();
             pokemons = pokemons.stream()
-                    .filter(pokemon -> pokemon.getName().toLowerCase().contains(caseInsensitiveQuery))
+                    .filter(pokemon -> isValidResult(pokemon.getName(), caseInsensitiveQuery))
                     .toList();
         }
         SortType sortType = SortType.fromString(sort);
@@ -37,13 +39,61 @@ public class PokemonService {
         return convertPokemonListToDTOResponse(pokemons);
     }
 
-    private static PokemonResponseDTO convertPokemonListToDTOResponse(List<Pokemon> pokemons) {
+    public PokemonResponseDTO<PokemonHighlightDTO> getPokemonsWithHighlight(String query, String sort) {
+        List<Pokemon> pokemons = getAllPokemons();
+
+        SortType sortType = SortType.fromString(sort);
+        pokemons = mergeSort(pokemons, sortType.getEvaluator());
+        List<PokemonHighlightDTO> results = new ArrayList<>();
+
+        if (isParamEmpty(query)) {
+            for (Pokemon pokemon : pokemons) {
+                results.add(new PokemonHighlightDTO(pokemon.getName(), pokemon.getName()));
+            }
+        } else {
+            String caseInsensitiveQuery = query.trim().toLowerCase();
+            String highlight;
+            for (Pokemon pokemon : pokemons) {
+                String pokemonName = pokemon.getName();
+                if (isValidResult(pokemonName, caseInsensitiveQuery)) {
+                    highlight = highlightFirstOccurrence(pokemonName, caseInsensitiveQuery);
+                    results.add(new PokemonHighlightDTO(pokemonName, highlight));
+                }
+            }
+        }
+        return new PokemonResponseDTO<>(results);
+    }
+
+    /**
+     * Verifica se o nome do Pokémon contém a string de busca (ignorando maiúsculas e minúsculas).
+     *
+     * @param pokemonName O nome do Pokémon a ser verificado.
+     * @param caseInsensitiveQuery A string de busca, que será comparada ao nome do Pokémon.
+     * @return Retorna true se o nome do Pokémon contém a string de busca, ignorando maiúsculas e minúsculas; caso contrário, retorna false.
+     */
+    private Boolean isValidResult(String pokemonName, String caseInsensitiveQuery) {
+        return pokemonName.toLowerCase().contains(caseInsensitiveQuery);
+    }
+
+    /**
+     * Converte uma lista de objetos Pokémon para um DTO (Data Transfer Object) que contém os nomes dos Pokémons.
+     *
+     * @param pokemons A lista de objetos Pokémon que será convertida.
+     * @return Retorna um objeto {@link PokemonResponseDTO} contendo uma lista de nomes dos Pokémons.
+     */
+    private static PokemonResponseDTO<String> convertPokemonListToDTOResponse(List<Pokemon> pokemons) {
         List<String> pokemonNames = pokemons.stream()
                 .map(Pokemon::getName)
                 .toList();
-        return new PokemonResponseDTO(pokemonNames);
+        return new PokemonResponseDTO<>(pokemonNames);
     }
 
+    /**
+     * Verifica se o parâmetro fornecido está vazio ou é nulo.
+     *
+     * @param param O parâmetro a ser verificado.
+     * @return Retorna true se o parâmetro for nulo ou contiver apenas espaços em branco; caso contrário, retorna false.
+     */
     private static Boolean isParamEmpty(String param) {
         return param == null || param.trim().isEmpty();
     }
