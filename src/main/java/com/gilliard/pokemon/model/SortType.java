@@ -37,7 +37,6 @@ public enum SortType {
      *
      * @param value String do tipo de ordenação.
      * @return SortType correspondente.
-     * @throws IllegalArgumentException se o tipo de ordenação for inválido.
      */
     public static SortType fromString(String value) {
         for (SortType type : values()) {
@@ -45,7 +44,7 @@ public enum SortType {
                 return type;
             }
         }
-        throw new IllegalArgumentException("Tipo de ordenação inválido: " + value);
+        return NAME;
     }
 
     /**

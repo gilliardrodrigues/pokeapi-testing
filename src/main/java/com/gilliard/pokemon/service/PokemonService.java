@@ -27,25 +27,13 @@ public class PokemonService {
     public List<Pokemon> getPokemons(String query, String sort) {
         List<Pokemon> pokemons = getAllPokemons();
 
-        if (isParamEmpty(query)) {
-            return pokemons;
+        if (!isParamEmpty(query)) {
+            String caseInsensitiveQuery = query.trim().toLowerCase();
+            pokemons = pokemons.stream()
+                    .filter(pokemon -> pokemon.getName().toLowerCase().contains(caseInsensitiveQuery))
+                    .toList();
         }
-        String caseInsensitiveQuery = query.trim().toLowerCase();
-        pokemons = pokemons.stream()
-                .filter(pokemon -> pokemon.getName().toLowerCase().contains(caseInsensitiveQuery))
-                .toList();
-
-        if (isParamEmpty(sort)) {
-            return pokemons;
-        }
-
-        SortType sortType;
-        try {
-            sortType = SortType.fromString(sort);
-        } catch (IllegalArgumentException e) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
-        }
-
+        SortType sortType = SortType.fromString(sort);
         pokemons = mergeSort(pokemons, sortType.getEvaluator());
         return pokemons;
     }
