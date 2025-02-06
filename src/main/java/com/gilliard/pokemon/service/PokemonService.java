@@ -19,14 +19,30 @@ import static com.gilliard.pokemon.utils.StringUtils.highlightFirstOccurrence;
 @Service
 public class PokemonService {
     private final RestTemplate restTemplate;
-
+    private List<Pokemon> pokemonCache;
 
     public PokemonService() {
         this.restTemplate = new RestTemplate();
+        this.pokemonCache = new ArrayList<>();
     }
 
+    /**
+     * Retorna a lista de Pokémons filtrados conforme os parâmetros fornecidos.<br>
+     * Caso o parâmetro de consulta (query) seja fornecido, o método irá buscar os Pokémons
+     * cujos nomes contêm a string de consulta (ignorando maiúsculas/minúsculas) em qualquer parte.
+     * Caso contrário, todos os Pokémons serão retornados.<br>
+     *
+     * O método também ordena os resultados com base no parâmetro de ordenação (sort).<br>
+     * A ordenação pode ser feita por nome ou pelo tamanho do nome. <br>
+     * Se nenhum tipo for recebido, a ordenação pelo nome será feita.<br>
+     *
+     * @param query O valor a ser pesquisado nos nomes dos Pokémons. Caso nulo ou vazio, todos os Pokémons são retornados.
+     * @param sort O tipo de ordenação desejado. Pode ser "name" para ordenar por nome ou "size" para ordenar pelo tamanho do nome. Se nenhum for fornecido, o padrão será pelo nome.
+     * @return Um objeto {@link PokemonResponseDTO} contendo a lista de Pokémons filtrados e ordenados.
+     */
     public PokemonResponseDTO<String> getPokemons(String query, String sort) {
-        List<Pokemon> pokemons = getAllPokemons();
+        loadPokemons();
+        List<Pokemon> pokemons = new ArrayList<>(pokemonCache);
 
         if (!isParamEmpty(query)) {
             String caseInsensitiveQuery = query.trim().toLowerCase();
@@ -39,8 +55,23 @@ public class PokemonService {
         return convertPokemonListToDTOResponse(pokemons);
     }
 
+    /**
+     * Retorna a lista de Pokémons filtrados conforme os parâmetros fornecidos, bem como a string de consulta destacada em cada resultado com a tag pre.<br>
+     * Caso o parâmetro de consulta (query) seja fornecido, o método irá buscar os Pokémons
+     * cujos nomes contêm a string de consulta (ignorando maiúsculas/minúsculas) em qualquer parte.
+     * Caso contrário, todos os Pokémons serão retornados.<br>
+     *
+     * O método também ordena os resultados com base no parâmetro de ordenação (sort).<br>
+     * A ordenação pode ser feita por nome ou pelo tamanho do nome. <br>
+     * Se nenhum tipo for recebido, a ordenação pelo nome será feita.<br>
+     *
+     * @param query O valor a ser pesquisado nos nomes dos Pokémons. Caso nulo ou vazio, todos os Pokémons são retornados.
+     * @param sort O tipo de ordenação desejado. Pode ser "name" para ordenar por nome ou "size" para ordenar pelo tamanho do nome. Se nenhum for fornecido, o padrão será pelo nome.
+     * @return Um objeto {@link PokemonResponseDTO} contendo a lista de Pokémons filtrados e ordenados.
+     */
     public PokemonResponseDTO<PokemonHighlightDTO> getPokemonsWithHighlight(String query, String sort) {
-        List<Pokemon> pokemons = getAllPokemons();
+        loadPokemons();
+        List<Pokemon> pokemons = new ArrayList<>(pokemonCache);
 
         SortType sortType = SortType.fromString(sort);
         pokemons = mergeSort(pokemons, sortType.getEvaluator());
@@ -62,6 +93,40 @@ public class PokemonService {
             }
         }
         return new PokemonResponseDTO<>(results);
+    }
+
+    /**
+     * Carrega todos os pokémons para a cache {@link #pokemonCache} a fim de evitar que em toda chamada seja necessário
+     * consumir a API externa. Se a cache já estiver populada a função não faz nada.
+     *
+     */
+    public void loadPokemons() {
+        if (!pokemonCache.isEmpty())
+            return;
+
+        // Inicia com a primeira página, limitada a 100 resultados:
+        String nextPageUrl = "https://pokeapi.co/api/v2/pokemon?limit=100";
+
+        while (nextPageUrl != null) {
+            ResponseEntity<Map<String, Object>> responseEntity = restTemplate.exchange(
+                    nextPageUrl,
+                    HttpMethod.GET,
+                    null,
+                    new ParameterizedTypeReference<Map<String, Object>>() {}
+            );
+            Map<String, Object> response = responseEntity.getBody();
+
+            if (response == null || !response.containsKey("results")) {
+                throw new RuntimeException("Erro: resposta da API é nula!");
+            }
+            List<Map<String, String>> results = convertToMapList(response.get("results"));
+
+            for (Map<String, String> pokemonData : results) {
+                Pokemon pokemon = getPokemon(pokemonData);
+                pokemonCache.add(pokemon);
+            }
+            nextPageUrl = (String) response.get("next"); // Passa para a próxima página.
+        }
     }
 
     /**
@@ -96,34 +161,6 @@ public class PokemonService {
      */
     private static Boolean isParamEmpty(String param) {
         return param == null || param.trim().isEmpty();
-    }
-
-    public List<Pokemon> getAllPokemons() {
-        List<Pokemon> pokemons = new ArrayList<>();
-        // Inicia com a primeira página, limitada a 100 resultados:
-        String nextPageUrl = "https://pokeapi.co/api/v2/pokemon?limit=100";
-
-        while (nextPageUrl != null) {
-            ResponseEntity<Map<String, Object>> responseEntity = restTemplate.exchange(
-                    nextPageUrl,
-                    HttpMethod.GET,
-                    null,
-                    new ParameterizedTypeReference<Map<String, Object>>() {}
-            );
-            Map<String, Object> response = responseEntity.getBody();
-
-            if (response == null || !response.containsKey("results")) {
-                throw new RuntimeException("Erro: resposta da API é nula!");
-            }
-            List<Map<String, String>> results = convertToMapList(response.get("results"));
-
-            for (Map<String, String> pokemonData : results) {
-                Pokemon pokemon = getPokemon(pokemonData);
-                pokemons.add(pokemon);
-            }
-            nextPageUrl = (String) response.get("next"); // Passa para a próxima página.
-        }
-        return pokemons;
     }
 
     /**
