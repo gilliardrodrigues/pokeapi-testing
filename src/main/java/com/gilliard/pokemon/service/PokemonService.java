@@ -1,5 +1,6 @@
 package com.gilliard.pokemon.service;
 
+import com.gilliard.pokemon.cache.PokemonCache;
 import com.gilliard.pokemon.dto.PokemonHighlightDTO;
 import com.gilliard.pokemon.dto.PokemonResponseDTO;
 import com.gilliard.pokemon.model.Pokemon;
@@ -19,11 +20,9 @@ import static com.gilliard.pokemon.utils.StringUtils.highlightFirstOccurrence;
 @Service
 public class PokemonService {
     private final RestTemplate restTemplate;
-    private List<Pokemon> pokemonCache;
 
     public PokemonService() {
         this.restTemplate = new RestTemplate();
-        this.pokemonCache = new ArrayList<>();
     }
 
     /**
@@ -41,8 +40,7 @@ public class PokemonService {
      * @return Um objeto {@link PokemonResponseDTO} contendo a lista de Pokémons filtrados e ordenados.
      */
     public PokemonResponseDTO<String> getPokemons(String query, String sort) {
-        loadPokemons();
-        List<Pokemon> pokemons = new ArrayList<>(pokemonCache);
+        List<Pokemon> pokemons = loadPokemons();
 
         if (!isParamEmpty(query)) {
             String caseInsensitiveQuery = query.trim().toLowerCase();
@@ -70,8 +68,7 @@ public class PokemonService {
      * @return Um objeto {@link PokemonResponseDTO} contendo a lista de Pokémons filtrados e ordenados.
      */
     public PokemonResponseDTO<PokemonHighlightDTO> getPokemonsWithHighlight(String query, String sort) {
-        loadPokemons();
-        List<Pokemon> pokemons = new ArrayList<>(pokemonCache);
+        List<Pokemon> pokemons = loadPokemons();
 
         SortType sortType = SortType.fromString(sort);
         pokemons = mergeSort(pokemons, sortType.getEvaluator());
@@ -96,13 +93,16 @@ public class PokemonService {
     }
 
     /**
-     * Carrega todos os pokémons para a cache {@link #pokemonCache} a fim de evitar que em toda chamada seja necessário
-     * consumir a API externa. Se a cache já estiver populada a função não faz nada.
+     * Carrega todos os pokémons para a cache {@link PokemonCache} a fim de evitar que em toda chamada seja necessário
+     * consumir a API externa e retorna uma lista contendo os pokémons armazenados. Se a cache já estiver populada a função apenas retorna o seu conteúdo.
      *
+     * @return Uma lista de {@link Pokemon} contendo os pokémons armazenados na cache.
      */
-    public void loadPokemons() {
-        if (!pokemonCache.isEmpty())
-            return;
+    public List<Pokemon> loadPokemons() {
+        PokemonCache pokemonCache = PokemonCache.getInstance();
+        List<Pokemon> cachedPokemons = pokemonCache.getCache();
+        if (!cachedPokemons.isEmpty())
+            return cachedPokemons;
 
         // Inicia com a primeira página, limitada a 100 resultados:
         String nextPageUrl = "https://pokeapi.co/api/v2/pokemon?limit=100";
@@ -123,10 +123,11 @@ public class PokemonService {
 
             for (Map<String, String> pokemonData : results) {
                 Pokemon pokemon = getPokemon(pokemonData);
-                pokemonCache.add(pokemon);
+                pokemonCache.addPokemon(pokemon);
             }
             nextPageUrl = (String) response.get("next"); // Passa para a próxima página.
         }
+        return pokemonCache.getCache();
     }
 
     /**
