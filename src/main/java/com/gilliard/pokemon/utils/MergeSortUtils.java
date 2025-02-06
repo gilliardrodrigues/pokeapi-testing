@@ -13,7 +13,10 @@ import java.util.function.BiFunction;
  * - Estratégia: divisão e conquista (divide recursivamente a lista em metades, ordena cada parte e depois combina de forma ordenada).<br>
  * - Justificativa da complexidade: o número de divisões necessárias para recursivamente reduzir a lista em n listas de
  * um elemento cada é log n. A mesclagem envolve percorrer os n elementos de cada nível da árvore,
- * então temos n * log n = O(n log n).
+ * então temos n * log n = O(n log n).<br>
+ * <br>
+ * Se estivesse usando alguma biblioteca de sorting do Java, bem como Comparators, talvez fosse uma boa usar o padrão Strategy e criar duas estratégias: uma para ordenar por nome e outra pelo tamanho.
+ *
  */
 public class MergeSortUtils {
 
