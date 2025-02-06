@@ -1,14 +1,13 @@
 package com.gilliard.pokemon.service;
 
+import com.gilliard.pokemon.dto.PokemonResponseDTO;
 import com.gilliard.pokemon.model.Pokemon;
 import com.gilliard.pokemon.model.SortType;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.*;
 
@@ -24,7 +23,7 @@ public class PokemonService {
         this.restTemplate = new RestTemplate();
     }
 
-    public List<Pokemon> getPokemons(String query, String sort) {
+    public PokemonResponseDTO getPokemons(String query, String sort) {
         List<Pokemon> pokemons = getAllPokemons();
 
         if (!isParamEmpty(query)) {
@@ -35,10 +34,17 @@ public class PokemonService {
         }
         SortType sortType = SortType.fromString(sort);
         pokemons = mergeSort(pokemons, sortType.getEvaluator());
-        return pokemons;
+        return convertPokemonListToDTOResponse(pokemons);
     }
 
-    public Boolean isParamEmpty(String param) {
+    private static PokemonResponseDTO convertPokemonListToDTOResponse(List<Pokemon> pokemons) {
+        List<String> pokemonNames = pokemons.stream()
+                .map(Pokemon::getName)
+                .toList();
+        return new PokemonResponseDTO(pokemonNames);
+    }
+
+    private static Boolean isParamEmpty(String param) {
         return param == null || param.trim().isEmpty();
     }
 
